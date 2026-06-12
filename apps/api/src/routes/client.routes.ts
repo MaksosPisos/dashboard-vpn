@@ -1,10 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import { prisma } from '../lib/prisma.js'
 import {
+  approveLeadSchema,
   createClientSchema,
   cancelSubscriptionSchema,
   createManualPaymentSchema,
   createVpnAccountSchema,
+  rejectLeadSchema,
   resumeSubscriptionSchema,
   suspendSubscriptionSchema,
   updateClientSchema,
@@ -13,12 +15,13 @@ import {
   resolveSubscriptionDisplayStatus,
   SubscriptionService,
 } from '../services/subscription.service.js'
+import { leadService } from '../services/lead.service.js'
 import { telegramService } from '../services/telegram.service.js'
 
 const subscriptionService = new SubscriptionService()
 
 function mapClientStatus(status: string) {
-  return status.toLowerCase() as 'active' | 'inactive' | 'suspended'
+  return status.toLowerCase() as 'pending' | 'active' | 'inactive' | 'suspended'
 }
 
 function mapSubscriptionResponse(subscription: {
@@ -82,7 +85,7 @@ export async function clientRoutes(app: FastifyInstance) {
             }
           : {}),
         ...(query.status
-          ? { status: query.status.toUpperCase() as 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' }
+          ? { status: query.status.toUpperCase() as 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' }
           : {}),
       },
       include: {
@@ -109,9 +112,11 @@ export async function clientRoutes(app: FastifyInstance) {
         updatedAt: client.updatedAt.toISOString(),
         activeAccountsCount: client.vpnAccounts.length,
         subscriptionEndDate: subscription?.endDate.toISOString() ?? null,
-        subscriptionStatus: subscription
-          ? resolveSubscriptionDisplayStatus(subscription.endDate, subscription.status)
-          : null,
+        subscriptionStatus: client.status === 'PENDING'
+          ? 'pending'
+          : subscription
+            ? resolveSubscriptionDisplayStatus(subscription.endDate, subscription.status)
+            : null,
         telegramUsername: client.telegramLink?.username ?? null,
       }
     })
@@ -270,6 +275,72 @@ export async function clientRoutes(app: FastifyInstance) {
     }
   })
 
+  app.post('/clients/:id/approve', {
+    preHandler: [app.authenticate],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body = approveLeadSchema.parse(request.body ?? {})
+
+    try {
+      const client = await leadService.approve(id)
+
+      if (body.notifyTelegram) {
+        telegramService
+          .notifyLeadApproved(id)
+          .catch((err) => console.error('[telegram] lead approved notify failed', err))
+      }
+
+      return {
+        id: client.id,
+        name: client.name,
+        status: mapClientStatus(client.status),
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'CLIENT_NOT_FOUND') {
+          return reply.status(404).send({ message: 'Client not found' })
+        }
+        if (error.message === 'NOT_PENDING') {
+          return reply.status(400).send({ message: 'Клиент не в статусе ожидания' })
+        }
+      }
+      throw error
+    }
+  })
+
+  app.post('/clients/:id/reject', {
+    preHandler: [app.authenticate],
+  }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const body = rejectLeadSchema.parse(request.body ?? {})
+
+    try {
+      const client = await leadService.reject(id, body.reason)
+
+      if (body.notifyTelegram) {
+        telegramService
+          .notifyLeadRejected(id, body.reason)
+          .catch((err) => console.error('[telegram] lead rejected notify failed', err))
+      }
+
+      return {
+        id: client.id,
+        name: client.name,
+        status: mapClientStatus(client.status),
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        if (error.message === 'CLIENT_NOT_FOUND') {
+          return reply.status(404).send({ message: 'Client not found' })
+        }
+        if (error.message === 'NOT_PENDING') {
+          return reply.status(400).send({ message: 'Клиент не в статусе ожидания' })
+        }
+      }
+      throw error
+    }
+  })
+
   app.delete('/clients/:id', {
     preHandler: [app.authenticate],
   }, async (request, reply) => {
@@ -292,6 +363,9 @@ export async function clientRoutes(app: FastifyInstance) {
     const client = await prisma.client.findUnique({ where: { id } })
     if (!client) {
       return reply.status(404).send({ message: 'Client not found' })
+    }
+    if (client.status === 'PENDING') {
+      return reply.status(400).send({ message: 'Сначала одобрите заявку клиента' })
     }
 
     const subscription = await subscriptionService.extend(id, body.planId, body.paidAt)

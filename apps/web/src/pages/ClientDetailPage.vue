@@ -21,6 +21,7 @@ import Checkbox from 'primevue/checkbox'
 import Message from 'primevue/message'
 import PageHeader from '@/shared/ui/PageHeader.vue'
 import StatusTag from '@/shared/ui/StatusTag.vue'
+import ClientStatusTag from '@/shared/ui/ClientStatusTag.vue'
 import VpnStatusTag from '@/shared/ui/VpnStatusTag.vue'
 import { useAuthStore } from '@/app/stores/auth'
 import { api } from '@/shared/api/client'
@@ -33,6 +34,7 @@ interface ClientDetail {
   name: string
   contact: string | null
   notes: string | null
+  status: string
   status: string
   subscriptions: Array<{
     id: string
@@ -70,6 +72,7 @@ const showEditDialog = ref(false)
 const showConfigDialog = ref(false)
 const showSuspendDialog = ref(false)
 const showResumeDialog = ref(false)
+const showRejectDialog = ref(false)
 const selectedConfig = ref('')
 const telegramDeepLink = ref<string | null>(null)
 const generatingLink = ref(false)
@@ -80,6 +83,8 @@ const savingVpn = ref(false)
 const savingEdit = ref(false)
 const suspendingSubscription = ref(false)
 const resumingSubscription = ref(false)
+const approvingLead = ref(false)
+const rejectingLead = ref(false)
 
 const editForm = ref({
   name: '',
@@ -111,6 +116,13 @@ const resumeForm = ref({
   notifyTelegram: true,
 })
 
+const rejectForm = ref({
+  reason: '',
+  notifyTelegram: true,
+})
+
+const isPendingLead = computed(() => client.value?.status === 'pending')
+
 const { data: client, isLoading } = useQuery({
   queryKey: ['client', clientId],
   queryFn: () => api.get<ClientDetail>(`/clients/${clientId.value}`, auth.token),
@@ -138,6 +150,7 @@ const canResumeSubscription = computed(() =>
 )
 
 const subscriptionStatus = computed(() => {
+  if (client.value?.status === 'pending') return 'pending'
   const sub = displaySubscription.value
   if (!sub) return null
   if (sub.status === 'SUSPENDED') return 'suspended'
@@ -394,6 +407,55 @@ async function submitResumeSubscription() {
     resumingSubscription.value = false
   }
 }
+
+function openRejectDialog() {
+  rejectForm.value = {
+    reason: '',
+    notifyTelegram: client.value?.telegramLink?.isLinked ?? false,
+  }
+  showRejectDialog.value = true
+}
+
+async function submitApproveLead() {
+  approvingLead.value = true
+  try {
+    await api.post(
+      `/clients/${clientId.value}/approve`,
+      { notifyTelegram: client.value?.telegramLink?.isLinked ?? false },
+      auth.token,
+    )
+    await queryClient.invalidateQueries({ queryKey: ['client', clientId] })
+    await queryClient.invalidateQueries({ queryKey: ['clients'] })
+    await queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+    toast.add({ severity: 'success', summary: 'Заявка одобрена', life: 3000 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Не удалось одобрить заявку'
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: message, life: 5000 })
+  } finally {
+    approvingLead.value = false
+  }
+}
+
+async function submitRejectLead() {
+  rejectingLead.value = true
+  try {
+    await api.post(
+      `/clients/${clientId.value}/reject`,
+      rejectForm.value,
+      auth.token,
+    )
+    showRejectDialog.value = false
+    await queryClient.invalidateQueries({ queryKey: ['client', clientId] })
+    await queryClient.invalidateQueries({ queryKey: ['clients'] })
+    await queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+    toast.add({ severity: 'success', summary: 'Заявка отклонена', life: 3000 })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Не удалось отклонить заявку'
+    toast.add({ severity: 'error', summary: 'Ошибка', detail: message, life: 5000 })
+  } finally {
+    rejectingLead.value = false
+  }
+}
 </script>
 
 <template>
@@ -403,6 +465,23 @@ async function submitResumeSubscription() {
       :subtitle="client?.contact ?? 'Загрузка...'"
     >
       <template #actions>
+        <template v-if="isPendingLead">
+          <Button
+            label="Одобрить заявку"
+            icon="pi pi-check"
+            severity="success"
+            :loading="approvingLead"
+            @click="submitApproveLead"
+          />
+          <Button
+            label="Отклонить"
+            icon="pi pi-times"
+            severity="danger"
+            outlined
+            @click="openRejectDialog"
+          />
+        </template>
+        <template v-else>
         <Button label="Редактировать" icon="pi pi-pencil" severity="secondary" @click="openEditDialog" />
         <Button
           label="Напомнить об оплате"
@@ -430,12 +509,17 @@ async function submitResumeSubscription() {
         />
         <Button label="Зафиксировать оплату" icon="pi pi-wallet" @click="openPaymentDialog" />
         <Button label="Выдать ключ" icon="pi pi-key" severity="secondary" @click="showVpnDialog = true" />
+        </template>
       </template>
     </PageHeader>
 
     <Card v-if="client" class="mb-4">
       <template #content>
         <div class="overview-grid">
+          <div>
+            <span class="kpi-label">Статус клиента</span>
+            <ClientStatusTag :status="client.status" />
+          </div>
           <div>
             <span class="kpi-label">Статус подписки</span>
             <StatusTag :status="subscriptionStatus" />
@@ -454,7 +538,15 @@ async function submitResumeSubscription() {
           </div>
         </div>
         <Message
-          v-if="displaySubscription?.status === 'SUSPENDED'"
+          v-if="isPendingLead"
+          severity="info"
+          :closable="false"
+          class="mt-3"
+        >
+          Заявка из Telegram-бота. Одобрите клиента, затем зафиксируйте оплату и выдайте VPN-ключ.
+        </Message>
+        <Message
+          v-else-if="displaySubscription?.status === 'SUSPENDED'"
           severity="warn"
           :closable="false"
           class="mt-3"
@@ -751,6 +843,32 @@ async function submitResumeSubscription() {
           severity="success"
           :loading="resumingSubscription"
           @click="submitResumeSubscription"
+        />
+      </template>
+    </Dialog>
+
+    <Dialog v-model:visible="showRejectDialog" modal header="Отклонить заявку" :style="{ width: '480px' }">
+      <div class="form-field">
+        <label>Причина (необязательно)</label>
+        <Textarea v-model="rejectForm.reason" rows="3" class="w-full" placeholder="Например: нет свободных слотов" />
+      </div>
+      <div class="form-field checkbox-field">
+        <Checkbox
+          v-model="rejectForm.notifyTelegram"
+          input-id="notifyRejectTg"
+          binary
+          :disabled="!client?.telegramLink?.isLinked"
+        />
+        <label for="notifyRejectTg">Уведомить клиента в Telegram</label>
+      </div>
+      <template #footer>
+        <Button label="Назад" text @click="showRejectDialog = false" />
+        <Button
+          label="Отклонить"
+          icon="pi pi-times"
+          severity="danger"
+          :loading="rejectingLead"
+          @click="submitRejectLead"
         />
       </template>
     </Dialog>

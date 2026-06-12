@@ -8,6 +8,7 @@ coverage/
 .vscode/
 .idea/
 *.tsbuildinfo
+docs/
 
 # Prisma
 apps/api/prisma/*.db

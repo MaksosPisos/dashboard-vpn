@@ -1,4 +1,4 @@
-export type ClientStatus = 'active' | 'inactive' | 'suspended'
+export type ClientStatus = 'pending' | 'active' | 'inactive' | 'suspended'
 
 export interface Client {
   id: string
@@ -18,6 +18,7 @@ export interface ClientListItem extends Client {
 }
 
 export type SubscriptionDisplayStatus =
+  | 'pending'
   | 'active'
   | 'expiring_soon'
   | 'expired'

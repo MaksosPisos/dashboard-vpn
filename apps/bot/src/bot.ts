@@ -1,4 +1,4 @@
-import { Bot, GrammyError } from 'grammy'
+import { Bot, GrammyError, InlineKeyboard } from 'grammy'
 import { botEnv } from './config/env.js'
 import { api } from './api.js'
 
@@ -7,6 +7,14 @@ function isAdmin(chatId: number): boolean {
 }
 
 function formatStatus(data: Awaited<ReturnType<typeof api.getStatus>>): string {
+  if (data.displayStatus === 'pending') {
+    return (
+      `👤 <b>${data.clientName}</b>\n\n` +
+      `⏳ Заявка на рассмотрении.\n` +
+      `Администратор скоро свяжется с вами.`
+    )
+  }
+
   if (data.displayStatus === 'no_subscription') {
     return `👤 ${data.clientName}\n\nПодписка не найдена.`
   }
@@ -29,6 +37,29 @@ function formatStatus(data: Awaited<ReturnType<typeof api.getStatus>>): string {
     `Осталось дней: ${data.daysLeft ?? '—'}\n` +
     `Статус: ${statusLabels[data.displayStatus] ?? data.displayStatus}`
   )
+}
+
+async function handleSubscribe(ctx: { chat?: { id: number }; from?: { username?: string; first_name?: string; last_name?: string }; reply: (text: string, extra?: object) => Promise<unknown> }) {
+  if (!ctx.chat) return
+
+  const chatId = String(ctx.chat.id)
+  const username = ctx.from?.username ?? null
+  const firstName = ctx.from?.first_name ?? null
+  const lastName = ctx.from?.last_name ?? null
+
+  try {
+    const result = await api.subscribe({ chatId, username, firstName, lastName })
+    await ctx.reply(
+      `✅ <b>Заявка принята!</b>\n\n` +
+        `Привет, ${result.clientName}.\n\n` +
+        `Администратор проверит заявку и свяжется с вами.\n` +
+        `/status — проверить статус заявки`,
+      { parse_mode: 'HTML' },
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Не удалось отправить заявку'
+    await ctx.reply(`❌ ${message}`)
+  }
 }
 
 export function createBot(): Bot {
@@ -54,18 +85,30 @@ export function createBot(): Bot {
       }
     }
 
+    const keyboard = new InlineKeyboard().text('Хочу VPN', 'subscribe')
+
     await ctx.reply(
       'VPN Dashboard Bot\n\n' +
-        'Для привязки аккаунта откройте ссылку из админки или отправьте:\n' +
-        '/start link_&lt;token&gt;\n\n' +
-        '/status — статус подписки\n/help — помощь',
-      { parse_mode: 'HTML' },
+        'Новому пользователю: нажмите «Хочу VPN» или отправьте /subscribe\n\n' +
+        'Если у вас уже есть аккаунт — откройте ссылку из админки.\n\n' +
+        '/status — статус\n/help — помощь',
+      { reply_markup: keyboard },
     )
+  })
+
+  bot.callbackQuery('subscribe', async (ctx) => {
+    await ctx.answerCallbackQuery()
+    await handleSubscribe(ctx)
+  })
+
+  bot.command('subscribe', async (ctx) => {
+    await handleSubscribe(ctx)
   })
 
   bot.command('help', async (ctx) => {
     const lines = [
       '<b>Команды:</b>',
+      '/subscribe — заявка на VPN',
       '/status — статус подписки',
       '/config — получить VPN-конфиг',
       '/pay — как оплатить',
@@ -85,7 +128,7 @@ export function createBot(): Bot {
       await ctx.reply(formatStatus(data), { parse_mode: 'HTML' })
     } catch {
       await ctx.reply(
-        'Аккаунт не привязан.\n\nПопросите ссылку для привязки у администратора VPN.',
+        'Аккаунт не привязан.\n\nОтправьте /subscribe — заявка на подключение к VPN.',
       )
     }
   })
@@ -107,7 +150,8 @@ export function createBot(): Bot {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'UNKNOWN'
       const replies: Record<string, string> = {
-        'Account not linked': 'Сначала привяжите аккаунт через ссылку из админки.',
+        'Account not linked': 'Сначала отправьте /subscribe или привяжите аккаунт через ссылку из админки.',
+        CLIENT_PENDING: 'Заявка ещё на рассмотрении. Дождитесь подтверждения администратора.',
         SUBSCRIPTION_INACTIVE: 'Подписка неактивна. Продлите доступ для получения конфига.',
         NO_CONFIG: 'VPN-ключ ещё не выдан. Обратитесь к администратору.',
       }
@@ -118,8 +162,8 @@ export function createBot(): Bot {
   bot.command('pay', async (ctx) => {
     await ctx.reply(
       '💳 <b>Оплата</b>\n\n' +
-        'Для продления напишите администратору VPN.\n' +
-        'После оплаты подписка будет продлена автоматически.',
+        'Для подключения или продления напишите администратору VPN.\n' +
+        'Если вы ещё не подключены — отправьте /subscribe',
       { parse_mode: 'HTML' },
     )
   })
@@ -135,6 +179,7 @@ export function createBot(): Bot {
       await ctx.reply(
         `📊 <b>Сводка</b>\n\n` +
           `Активных клиентов: ${stats.activeClients}\n` +
+          `Заявок ожидает: ${stats.pendingLeads}\n` +
           `Истекают в 7 дней: ${stats.expiringSoon}\n` +
           `Просрочено: ${stats.expired}`,
         { parse_mode: 'HTML' },

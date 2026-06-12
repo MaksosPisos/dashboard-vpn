@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuery } from '@tanstack/vue-query'
 import Card from 'primevue/card'
 import DataTable from 'primevue/datatable'
@@ -12,17 +12,20 @@ import Dialog from 'primevue/dialog'
 import Textarea from 'primevue/textarea'
 import PageHeader from '@/shared/ui/PageHeader.vue'
 import StatusTag from '@/shared/ui/StatusTag.vue'
+import ClientStatusTag from '@/shared/ui/ClientStatusTag.vue'
 import { useAuthStore } from '@/app/stores/auth'
 import { api } from '@/shared/api/client'
 import { formatDate } from '@/shared/lib/format'
 import type { ClientListItem } from '@dashboard-vpn/shared'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 
 const search = ref('')
 const debouncedSearch = ref('')
 const subscriptionFilter = ref<string | null>(null)
+const clientStatusFilter = ref<string | null>(null)
 const showDialog = ref(false)
 const creating = ref(false)
 const form = ref({ name: '', contact: '', notes: '' })
@@ -32,7 +35,23 @@ const subscriptionOptions = [
   { label: 'Активные', value: 'active' },
   { label: 'Истекают скоро', value: 'expiring_soon' },
   { label: 'Просрочены', value: 'expired' },
+  { label: 'Ожидают', value: 'pending' },
 ]
+
+const clientStatusOptions = [
+  { label: 'Все статусы', value: null },
+  { label: 'Ожидают', value: 'pending' },
+  { label: 'Активные', value: 'active' },
+  { label: 'Неактивные', value: 'inactive' },
+  { label: 'Приостановлены', value: 'suspended' },
+]
+
+onMounted(() => {
+  const status = route.query.status
+  if (typeof status === 'string') {
+    clientStatusFilter.value = status
+  }
+})
 
 let searchTimer: ReturnType<typeof setTimeout>
 watch(search, (value) => {
@@ -43,11 +62,12 @@ watch(search, (value) => {
 })
 
 const { data, isLoading, refetch } = useQuery({
-  queryKey: ['clients', debouncedSearch, subscriptionFilter],
+  queryKey: ['clients', debouncedSearch, subscriptionFilter, clientStatusFilter],
   queryFn: () => {
     const params = new URLSearchParams()
     if (debouncedSearch.value) params.set('search', debouncedSearch.value)
     if (subscriptionFilter.value) params.set('subscriptionStatus', subscriptionFilter.value)
+    if (clientStatusFilter.value) params.set('status', clientStatusFilter.value)
     const query = params.toString()
     return api.get<ClientListItem[]>(`/clients${query ? `?${query}` : ''}`, auth.token)
   },
@@ -86,6 +106,14 @@ function openClient(id: string) {
             <InputText v-model="search" placeholder="Поиск по имени или контакту" />
           </span>
           <Select
+            v-model="clientStatusFilter"
+            :options="clientStatusOptions"
+            option-label="label"
+            option-value="value"
+            placeholder="Статус клиента"
+            class="filter-select"
+          />
+          <Select
             v-model="subscriptionFilter"
             :options="subscriptionOptions"
             option-label="label"
@@ -103,6 +131,11 @@ function openClient(id: string) {
           @row-click="(event) => openClient(event.data.id)"
         >
           <Column field="name" header="Имя" />
+          <Column header="Статус">
+            <template #body="{ data: row }">
+              <ClientStatusTag :status="row.status" />
+            </template>
+          </Column>
           <Column field="contact" header="Контакт" />
           <Column field="telegramUsername" header="Telegram">
             <template #body="{ data: row }">

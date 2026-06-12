@@ -127,6 +127,16 @@ export class TelegramService {
       throw new Error('NOT_LINKED')
     }
 
+    if (link.client.status === 'PENDING') {
+      return {
+        clientName: link.client.name,
+        planName: null,
+        endDate: null,
+        daysLeft: null,
+        displayStatus: 'pending' as const,
+      }
+    }
+
     const subscription = link.client.subscriptions[0]
     if (!subscription) {
       return {
@@ -171,6 +181,10 @@ export class TelegramService {
 
     if (!link?.client) {
       throw new Error('NOT_LINKED')
+    }
+
+    if (link.client.status === 'PENDING') {
+      throw new Error('CLIENT_PENDING')
     }
 
     if (!link.client.subscriptions.length) {
@@ -354,12 +368,56 @@ export class TelegramService {
     return { sent: true }
   }
 
+  async notifyAdminsNewLead(clientName: string, username: string | null) {
+    if (!env.telegramAdminIds.length) return { skipped: true, reason: 'no_admins' }
+
+    const contact = username ? `@${username}` : 'без username'
+    const text =
+      `🆕 <b>Новая заявка на VPN</b>\n\n` +
+      `Имя: ${clientName}\n` +
+      `Telegram: ${contact}\n\n` +
+      `Проверьте админку → Клиенты → «Ожидают»`
+
+    for (const adminId of env.telegramAdminIds) {
+      await this.sendMessage(adminId, text)
+    }
+
+    return { sent: true }
+  }
+
+  async notifyLeadApproved(clientId: string) {
+    const link = await prisma.telegramLink.findUnique({ where: { clientId } })
+    if (!link?.chatId) return { skipped: true, reason: 'not_linked' }
+
+    const text =
+      `✅ <b>Заявка одобрена</b>\n\n` +
+      `Администратор подтвердил ваш доступ.\n` +
+      `Ожидайте выдачи ключа или инструкций по оплате.\n\n` +
+      `/pay — как оплатить\n` +
+      `/status — статус`
+
+    return this.sendMessage(link.chatId, text)
+  }
+
+  async notifyLeadRejected(clientId: string, reason?: string) {
+    const link = await prisma.telegramLink.findUnique({ where: { clientId } })
+    if (!link?.chatId) return { skipped: true, reason: 'not_linked' }
+
+    const text =
+      `❌ <b>Заявка отклонена</b>\n\n` +
+      (reason ? `${reason}\n\n` : '') +
+      `По вопросам напишите администратору VPN.`
+
+    return this.sendMessage(link.chatId, text)
+  }
+
   async getDashboardStatsForBot() {
     const now = new Date()
     const inSevenDays = addDays(now, 7)
 
-    const [activeClients, expiringSoon, expired] = await Promise.all([
+    const [activeClients, pendingLeads, expiringSoon, expired] = await Promise.all([
       prisma.client.count({ where: { status: 'ACTIVE' } }),
+      prisma.client.count({ where: { status: 'PENDING' } }),
       prisma.subscription.count({
         where: { status: 'ACTIVE', endDate: { gte: now, lte: inSevenDays } },
       }),
@@ -373,7 +431,7 @@ export class TelegramService {
       }),
     ])
 
-    return { activeClients, expiringSoon, expired }
+    return { activeClients, pendingLeads, expiringSoon, expired }
   }
 }
 

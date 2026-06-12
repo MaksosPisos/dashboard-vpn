@@ -3,7 +3,9 @@ import { z } from 'zod'
 import { env } from '../config/env.js'
 import { prisma } from '../lib/prisma.js'
 import { triggerExpiryRemindersManually } from '../scheduler.js'
+import { leadService } from '../services/lead.service.js'
 import { telegramService } from '../services/telegram.service.js'
+import { subscribeTelegramSchema } from '../schemas/index.js'
 const linkSchema = z.object({
   token: z.string().min(1),
   chatId: z.string().min(1),
@@ -77,6 +79,36 @@ export async function telegramRoutes(app: FastifyInstance) {
     }
   })
 
+  app.post('/internal/telegram/subscribe', {
+    preHandler: [app.authenticateBot],
+  }, async (request, reply) => {
+    const body = subscribeTelegramSchema.parse(request.body)
+
+    try {
+      const client = await leadService.createFromTelegram(body)
+
+      telegramService
+        .notifyAdminsNewLead(client.name, client.telegramLink?.username ?? null)
+        .catch((err) => console.error('[telegram] new lead notify failed', err))
+
+      return {
+        clientId: client.id,
+        clientName: client.name,
+        status: 'pending',
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        const messages: Record<string, string> = {
+          ALREADY_PENDING: 'Заявка уже отправлена и ожидает подтверждения',
+          ALREADY_LINKED: 'Аккаунт уже привязан',
+        }
+        const message = messages[error.message]
+        if (message) return reply.status(400).send({ message })
+      }
+      throw error
+    }
+  })
+
   app.post('/internal/telegram/link', {
     preHandler: [app.authenticateBot],
   }, async (request, reply) => {
@@ -123,6 +155,7 @@ export async function telegramRoutes(app: FastifyInstance) {
           NOT_LINKED: 404,
           SUBSCRIPTION_INACTIVE: 403,
           NO_CONFIG: 404,
+          CLIENT_PENDING: 403,
         }
         const status = statusMap[error.message]
         if (status) {

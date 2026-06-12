@@ -1,0 +1,128 @@
+# Production stack for VPS (nginx + api + bot + postgres).
+# Amnezia VPN runs separately — do not modify the amnezia-awg2 container.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: dashboard-vpn-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vpn_admin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: dashboard_vpn
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c max_connections=30
+      -c work_mem=4MB
+    volumes:
+      - dashboard_pg_data:/var/lib/postgresql/data
+    networks:
+      - dashboard
+    mem_limit: 256m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U vpn_admin -d dashboard_vpn']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+    container_name: dashboard-vpn-api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      DATABASE_URL: postgresql://vpn_admin:${POSTGRES_PASSWORD}@postgres:5432/dashboard_vpn?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      BOT_API_KEY: ${BOT_API_KEY}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS}
+      CRON_EXPIRY_REMINDERS_ENABLED: ${CRON_EXPIRY_REMINDERS_ENABLED:-true}
+      CRON_EXPIRY_REMINDERS_SCHEDULE: ${CRON_EXPIRY_REMINDERS_SCHEDULE:-0 10 * * *}
+      CRON_TIMEZONE: ${CRON_TIMEZONE:-Europe/Moscow}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - dashboard
+    mem_limit: 256m
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3001/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  bot:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.bot
+    container_name: dashboard-vpn-bot
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS}
+      BOT_API_KEY: ${BOT_API_KEY}
+      API_INTERNAL_URL: http://api:3001
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - dashboard
+    mem_limit: 128m
+
+  nginx:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.nginx
+    container_name: dashboard-vpn-nginx
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      # HTTP-only config until Let's Encrypt certs are issued (see docs/DEPLOY.md)
+      - ./deploy/nginx/conf.d/default.http.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot-www:/var/www/certbot:ro
+      # After certbot, also mount:
+      # - ./deploy/nginx/conf.d/default.https.conf:/etc/nginx/conf.d/default.conf:ro
+      # - certbot-conf:/etc/letsencrypt:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - dashboard
+    mem_limit: 64m
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: dashboard-vpn-certbot
+    profiles:
+      - certbot
+    volumes:
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    networks:
+      - dashboard
+
+networks:
+  dashboard:
+    driver: bridge
+
+volumes:
+  dashboard_pg_data:
+  certbot-www:
+  certbot-conf:

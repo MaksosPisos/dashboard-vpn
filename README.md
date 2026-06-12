@@ -118,3 +118,14 @@ docs/PLAN.md — план реализации
 | 4 — Платежи | ⏳ |
 
 Подробный план: [docs/PLAN.md](docs/PLAN.md)
+
+## Деплой на VPS
+
+Production-стек (Docker: nginx + api + bot + postgres) для **vm86654.it-garage.network**:
+
+```bash
+cp .env.production.example .env   # заполнить секреты
+npm run docker:prod:up
+```
+
+Пошаговая инструкция (DNS, HTTPS, обновления): [deploy/README.md](deploy/README.md)

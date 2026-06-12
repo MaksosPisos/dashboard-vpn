@@ -15,7 +15,10 @@
     "db:generate": "npm run db:generate --workspace=@dashboard-vpn/api",
     "db:migrate": "npm run db:migrate --workspace=@dashboard-vpn/api",
     "db:seed": "npm run db:seed --workspace=@dashboard-vpn/api",
-    "db:studio": "npm run db:studio --workspace=@dashboard-vpn/api"
+    "db:studio": "npm run db:studio --workspace=@dashboard-vpn/api",
+    "docker:prod:up": "docker compose -f docker-compose.prod.yml up -d --build",
+    "docker:prod:down": "docker compose -f docker-compose.prod.yml down",
+    "docker:prod:logs": "docker compose -f docker-compose.prod.yml logs -f"
   },
   "engines": {
     "node": ">=20"

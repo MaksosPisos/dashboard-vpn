@@ -17,6 +17,8 @@ const config = computed(() => {
       return { label: 'Просрочена', severity: 'danger' as const }
     case 'suspended':
       return { label: 'Приостановлена', severity: 'secondary' as const }
+    case 'pending':
+      return { label: 'Ожидает', severity: 'info' as const }
     default:
       return { label: 'Нет подписки', severity: 'secondary' as const }
   }

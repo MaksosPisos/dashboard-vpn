@@ -15,7 +15,23 @@ export const updateClientSchema = z.object({
   name: z.string().min(1).optional(),
   contact: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE', 'SUSPENDED']).optional(),
+  status: z.enum(['PENDING', 'ACTIVE', 'INACTIVE', 'SUSPENDED']).optional(),
+})
+
+export const approveLeadSchema = z.object({
+  notifyTelegram: z.boolean().optional(),
+})
+
+export const rejectLeadSchema = z.object({
+  reason: z.string().optional(),
+  notifyTelegram: z.boolean().optional(),
+})
+
+export const subscribeTelegramSchema = z.object({
+  chatId: z.string().min(1),
+  username: z.string().nullable().optional(),
+  firstName: z.string().nullable().optional(),
+  lastName: z.string().nullable().optional(),
 })
 
 export const createManualPaymentSchema = z.object({

@@ -19,6 +19,21 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  subscribe(input: {
+    chatId: string
+    username?: string | null
+    firstName?: string | null
+    lastName?: string | null
+  }) {
+    return request<{ clientId: string; clientName: string; status: string }>(
+      '/internal/telegram/subscribe',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    )
+  },
+
   linkAccount(token: string, chatId: string, username?: string | null) {
     return request<{ clientName: string }>('/internal/telegram/link', {
       method: 'POST',
@@ -41,7 +56,7 @@ export const api = {
   },
 
   getStats() {
-    return request<{ activeClients: number; expiringSoon: number; expired: number }>(
+    return request<{ activeClients: number; pendingLeads: number; expiringSoon: number; expired: number }>(
       '/internal/dashboard/stats',
     )
   },

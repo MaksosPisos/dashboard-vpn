@@ -1,0 +1,17 @@
+node_modules
+**/node_modules
+**/dist
+apps/web/dist
+.git
+.gitignore
+.env
+.env.*
+!.env.production.example
+*.md
+docs
+.cursor
+.vscode
+terminals
+**/*.log
+coverage
+.DS_Store

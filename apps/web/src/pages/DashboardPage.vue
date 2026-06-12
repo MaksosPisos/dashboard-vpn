@@ -21,7 +21,8 @@ const { data, isLoading } = useQuery({
 })
 
 const kpis = computed(() => [
-  { label: 'Активных клиентов', value: data.value?.activeClients ?? 0, to: '/clients' },
+  { label: 'Активных клиентов', value: data.value?.activeClients ?? 0, to: '/clients?status=active' },
+  { label: 'Заявок ожидает', value: data.value?.pendingLeads ?? 0, to: '/clients?status=pending', highlight: true },
   { label: 'Активных подписок', value: data.value?.activeSubscriptions ?? 0, to: '/subscriptions?status=active' },
   { label: 'Истекают в 7 дней', value: data.value?.expiringSoon ?? 0, to: '/subscriptions?status=expiring', highlight: true },
   { label: 'Просрочено', value: data.value?.expired ?? 0, to: '/subscriptions?status=expired', danger: true },
