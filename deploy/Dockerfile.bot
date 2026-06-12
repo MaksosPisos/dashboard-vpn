@@ -2,10 +2,14 @@ FROM node:20-bookworm-slim AS build
 
 WORKDIR /app
 
+# npm workspaces: все package.json нужны для npm ci, исходники — только bot
 COPY package.json package-lock.json ./
+COPY packages/shared/package.json ./packages/shared/package.json
+COPY apps/api/package.json ./apps/api/package.json
+COPY apps/web/package.json ./apps/web/package.json
 COPY apps/bot ./apps/bot
 
-RUN npm ci
+RUN npm ci --ignore-scripts
 WORKDIR /app/apps/bot
 RUN npm run build
 
