@@ -35,7 +35,6 @@ interface ClientDetail {
   contact: string | null
   notes: string | null
   status: string
-  status: string
   subscriptions: Array<{
     id: string
     startDate: string
