@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "TelegramLink" ALTER COLUMN "chatId" DROP NOT NULL,
+ALTER COLUMN "linkedAt" DROP NOT NULL,
+ALTER COLUMN "linkedAt" DROP DEFAULT;

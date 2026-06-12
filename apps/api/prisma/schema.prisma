@@ -1,0 +1,172 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum PaymentMethod {
+  CASH
+  TRANSFER
+  OTHER
+  YOOKASSA
+  ROBOKASSA
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum VpnAccountStatus {
+  ACTIVE
+  SUSPENDED
+  REVOKED
+}
+
+enum VpnServerProvider {
+  MANUAL
+  AMNEZIA_API
+  AWG_REST
+}
+
+model AdminUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Client {
+  id            String         @id @default(uuid())
+  name          String
+  contact       String?
+  notes         String?
+  status        ClientStatus   @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+  payments      Payment[]
+  vpnAccounts   VpnAccount[]
+  telegramLink  TelegramLink?
+}
+
+model Plan {
+  id            String         @id @default(uuid())
+  name          String
+  durationDays  Int
+  price         Decimal        @db.Decimal(10, 2)
+  maxDevices    Int            @default(1)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+  payments      Payment[]
+}
+
+model Subscription {
+  id                  String                           @id @default(uuid())
+  clientId            String
+  planId              String
+  startDate           DateTime
+  endDate             DateTime
+  status              SubscriptionStatus               @default(ACTIVE)
+  suspendedAt         DateTime?
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+  client              Client                           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  plan                Plan                             @relation(fields: [planId], references: [id])
+  payments            Payment[]
+  expiryNotifications SubscriptionExpiryNotification[]
+
+  @@index([clientId])
+  @@index([endDate])
+  @@index([status])
+}
+
+model SubscriptionExpiryNotification {
+  id             String       @id @default(uuid())
+  subscriptionId String
+  daysBefore     Int
+  sentAt         DateTime     @default(now())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, daysBefore])
+  @@index([subscriptionId])
+}
+
+model Payment {
+  id                String        @id @default(uuid())
+  clientId          String
+  subscriptionId    String?
+  planId            String?
+  amount            Decimal       @db.Decimal(10, 2)
+  paidAt            DateTime
+  method            PaymentMethod
+  status            PaymentStatus @default(PAID)
+  externalPaymentId String?       @unique
+  notes             String?
+  createdAt         DateTime      @default(now())
+  client            Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id])
+  plan              Plan?         @relation(fields: [planId], references: [id])
+
+  @@index([clientId])
+  @@index([paidAt])
+}
+
+model VpnServer {
+  id          String            @id @default(uuid())
+  name        String
+  apiUrl      String?
+  apiKey      String?
+  provider    VpnServerProvider @default(MANUAL)
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  vpnAccounts VpnAccount[]
+}
+
+model VpnAccount {
+  id             String           @id @default(uuid())
+  clientId       String
+  serverId       String?
+  label          String
+  externalPeerId String?
+  status         VpnAccountStatus @default(ACTIVE)
+  configSnapshot String?          @db.Text
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  client         Client           @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  server         VpnServer?       @relation(fields: [serverId], references: [id])
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model TelegramLink {
+  id        String    @id @default(uuid())
+  clientId  String    @unique
+  chatId    String?   @unique
+  username  String?
+  linkToken String?   @unique
+  linkedAt  DateTime?
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+}

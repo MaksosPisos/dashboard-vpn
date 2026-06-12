@@ -1,0 +1,26 @@
+{
+  "name": "dashboard-vpn",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "postinstall": "npm run build --workspace=@dashboard-vpn/shared",
+    "dev": "concurrently -n api,web,bot -c blue,green,magenta \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:bot\"",
+    "dev:web": "npm run dev --workspace=@dashboard-vpn/web",
+    "dev:api": "npm run dev --workspace=@dashboard-vpn/api",
+    "dev:bot": "npm run dev --workspace=@dashboard-vpn/bot",
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "npm run db:generate --workspace=@dashboard-vpn/api",
+    "db:migrate": "npm run db:migrate --workspace=@dashboard-vpn/api",
+    "db:seed": "npm run db:seed --workspace=@dashboard-vpn/api",
+    "db:studio": "npm run db:studio --workspace=@dashboard-vpn/api"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
