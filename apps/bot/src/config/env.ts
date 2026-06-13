@@ -12,6 +12,7 @@ export const botEnv = {
   token: process.env.TELEGRAM_BOT_TOKEN ?? '',
   apiUrl: process.env.API_INTERNAL_URL ?? 'http://localhost:3001',
   botApiKey: process.env.BOT_API_KEY ?? 'dev-bot-api-key',
+  supportUsername: (process.env.TELEGRAM_SUPPORT_USERNAME ?? '').replace(/^@/, '').trim(),
   adminIds: (process.env.TELEGRAM_ADMIN_IDS ?? '')
     .split(',')
     .map((id) => id.trim())

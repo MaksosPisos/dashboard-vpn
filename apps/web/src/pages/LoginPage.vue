@@ -7,6 +7,7 @@ import Password from 'primevue/password'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import ThemeToggle from '@/shared/ui/ThemeToggle.vue'
+import AppLogo from '@/shared/ui/AppLogo.vue'
 import { useAuthStore } from '@/app/stores/auth'
 
 const router = useRouter()
@@ -36,7 +37,12 @@ async function onSubmit() {
 <template>
   <div class="login-page">
     <Card class="login-card">
-      <template #title>Вход в VPN Dashboard</template>
+      <template #title>
+        <div class="login-brand">
+          <AppLogo variant="login" />
+          <span>Вход</span>
+        </div>
+      </template>
       <template #subtitle>Учёт клиентов, подписок и ключей Amnezia</template>
       <template #content>
         <form @submit.prevent="onSubmit">
@@ -74,6 +80,14 @@ async function onSubmit() {
 </template>
 
 <style scoped>
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  text-align: center;
+}
+
 .w-full {
   width: 100%;
 }

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import Button from 'primevue/button'
 import ThemeToggle from '@/shared/ui/ThemeToggle.vue'
+import AppLogo from '@/shared/ui/AppLogo.vue'
 import { useAuthStore } from '@/app/stores/auth'
 import { useUiStore } from '@/app/stores/ui'
 
@@ -51,8 +52,9 @@ function isActive(path: string) {
       :class="{ open: ui.sidebarOpen, collapsed: ui.sidebarCollapsed }"
     >
       <div class="sidebar-brand">
-        <span v-if="!ui.sidebarCollapsed">VPN Dashboard</span>
-        <span v-else>VPN</span>
+        <RouterLink to="/" class="sidebar-brand-link" @click="ui.closeSidebar()">
+          <AppLogo variant="sidebar" :collapsed="ui.sidebarCollapsed" />
+        </RouterLink>
       </div>
 
       <nav class="sidebar-nav">

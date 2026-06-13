@@ -6,6 +6,27 @@ function isAdmin(chatId: number): boolean {
   return botEnv.adminIds.includes(String(chatId))
 }
 
+function supportContactLine(): string {
+  if (botEnv.supportUsername) {
+    return `По вопросам: @${botEnv.supportUsername}`
+  }
+  return 'По вопросам напишите администратору.'
+}
+
+function welcomeText(): string {
+  return (
+    '🔐 <b>VPN-сервис Amnezia</b>\n\n' +
+    'Бот помогает подключиться к VPN, следить за подпиской и получать ключи.\n\n' +
+    '<b>Новым пользователям:</b> нажмите «Хочу VPN» или отправьте /subscribe\n' +
+    '<b>Уже есть аккаунт:</b> откройте ссылку из личного кабинета\n\n' +
+    '/status — статус подписки\n' +
+    '/config — VPN-ключ\n' +
+    '/pay — оплата\n' +
+    '/help — справка\n\n' +
+    supportContactLine()
+  )
+}
+
 function formatStatus(data: Awaited<ReturnType<typeof api.getStatus>>): string {
   if (data.displayStatus === 'pending') {
     return (
@@ -76,9 +97,12 @@ async function sendVpnConfigMessage(
 
   const header = `🔑 <b>${label}</b>\n\n`
   if (header.length + trimmed.length > 4000) {
-    await ctx.reply(`${header}Конфиг слишком длинный, обратитесь к администратору.`, {
-      parse_mode: 'HTML',
-    })
+    await ctx.reply(
+      `${header}Конфиг слишком длинный. ${supportContactLine()}`,
+      {
+        parse_mode: 'HTML',
+      },
+    )
     return
   }
 
@@ -96,7 +120,7 @@ async function handlePayCommand(ctx: { chat: { id: number }; reply: (text: strin
     const plans = await api.getPlansForChat(chatId)
 
     if (plans.length === 0) {
-      await ctx.reply('Тарифы временно недоступны. Напишите администратору.')
+      await ctx.reply(`Тарифы временно недоступны. ${supportContactLine()}`)
       return
     }
 
@@ -114,7 +138,7 @@ async function handlePayCommand(ctx: { chat: { id: number }; reply: (text: strin
     const message = error instanceof Error ? error.message : 'UNKNOWN'
     const replies: Record<string, string> = {
       'Account not linked': 'Сначала отправьте /subscribe или привяжите аккаунт через ссылку из админки.',
-      'FreeKassa не настроена на сервере': 'Онлайн-оплата временно недоступна. Напишите администратору.',
+      'FreeKassa не настроена на сервере': `Онлайн-оплата временно недоступна. ${supportContactLine()}`,
     }
     await ctx.reply(replies[message] ?? 'Не удалось загрузить тарифы. Попробуйте позже.')
   }
@@ -146,11 +170,8 @@ export function createBot(): Bot {
     const keyboard = new InlineKeyboard().text('Хочу VPN', 'subscribe')
 
     await ctx.reply(
-      'VPN Dashboard Bot\n\n' +
-        'Новому пользователю: нажмите «Хочу VPN» или отправьте /subscribe\n\n' +
-        'Если у вас уже есть аккаунт — откройте ссылку из админки.\n\n' +
-        '/status — статус\n/help — помощь',
-      { reply_markup: keyboard },
+      welcomeText(),
+      { parse_mode: 'HTML', reply_markup: keyboard },
     )
   })
 
@@ -165,12 +186,20 @@ export function createBot(): Bot {
 
   bot.command('help', async (ctx) => {
     const lines = [
+      '<b>Что умеет бот</b>',
+      '• Оформить заявку на VPN',
+      '• Показать статус и срок подписки',
+      '• Выдать VPN-ключ для Amnezia',
+      '• Принять оплату онлайн',
+      '',
       '<b>Команды:</b>',
       '/subscribe — заявка на VPN',
       '/status — статус подписки',
-      '/config — получить VPN-конфиг',
-      '/pay — как оплатить',
+      '/config — получить VPN-ключ',
+      '/pay — оплата подписки',
       '/help — эта справка',
+      '',
+      supportContactLine(),
     ]
 
     if (isAdmin(ctx.chat.id)) {
@@ -215,7 +244,7 @@ export function createBot(): Bot {
         'Account not linked': 'Сначала отправьте /subscribe или привяжите аккаунт через ссылку из админки.',
         CLIENT_PENDING: 'Заявка ещё на рассмотрении. Дождитесь подтверждения администратора.',
         SUBSCRIPTION_INACTIVE: 'Подписка неактивна. Продлите доступ для получения конфига.',
-        NO_CONFIG: 'VPN-ключ ещё не выдан. Обратитесь к администратору.',
+        NO_CONFIG: `VPN-ключ ещё не выдан. ${supportContactLine()}`,
       }
       await ctx.reply(replies[message] ?? 'Не удалось получить конфиг.')
     }
