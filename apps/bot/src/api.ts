@@ -52,7 +52,10 @@ export const api = {
   },
 
   getConfig(chatId: string) {
-    return request<{ label: string; config: string }>(`/internal/telegram/${chatId}/config`)
+    return request<{
+      maxDevices: number
+      configs: Array<{ label: string; config: string }>
+    }>(`/internal/telegram/${chatId}/config`)
   },
 
   getStats() {

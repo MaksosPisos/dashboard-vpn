@@ -17,6 +17,7 @@ import {
 } from '../services/subscription.service.js'
 import { leadService } from '../services/lead.service.js'
 import { telegramService } from '../services/telegram.service.js'
+import { vpnService } from '../services/vpn.service.js'
 
 const subscriptionService = new SubscriptionService()
 
@@ -384,9 +385,48 @@ export async function clientRoutes(app: FastifyInstance) {
       include: { plan: true },
     })
 
+    let issuedVpnAccount: Awaited<ReturnType<typeof vpnService.issueAfterPayment>> | null = null
+
+    if (body.issueVpnAccount) {
+      try {
+        issuedVpnAccount = await vpnService.issueAfterPayment(id, {
+          label: body.vpnLabel,
+          configSnapshot: body.vpnConfigSnapshot,
+          serverId: body.vpnServerId,
+        })
+      } catch (error) {
+        if (error instanceof Error) {
+          if (error.message === 'VPN_LABEL_REQUIRED') {
+            return reply.status(400).send({ message: 'Укажите название устройства для VPN-ключа' })
+          }
+          if (error.message === 'VPN_CONFIG_REQUIRED') {
+            return reply.status(400).send({
+              message: 'У клиента нет VPN-ключа. Вставьте конфиг Amnezia для выдачи.',
+            })
+          }
+        }
+        throw error
+      }
+    } else if (subscription.status === 'ACTIVE') {
+      await vpnService.reactivateSuspendedAccounts(id)
+    }
+
     if (body.notifyTelegram) {
+      const vpnConfig =
+        issuedVpnAccount?.configSnapshot && body.issueVpnAccount
+          ? {
+              vpnLabel: issuedVpnAccount.label,
+              vpnConfig: issuedVpnAccount.configSnapshot,
+            }
+          : undefined
+
       telegramService
-        .notifyPaymentExtended(id, subscription.endDate, subscription.plan.name)
+        .notifyPaymentExtended(
+          id,
+          subscription.endDate,
+          subscription.plan.name,
+          vpnConfig,
+        )
         .catch((err) => console.error('[telegram] payment notify failed', err))
     }
 
@@ -420,6 +460,16 @@ export async function clientRoutes(app: FastifyInstance) {
           updatedAt: subscription.plan.updatedAt.toISOString(),
         },
       },
+      vpnAccount: issuedVpnAccount
+        ? {
+            id: issuedVpnAccount.id,
+            clientId: issuedVpnAccount.clientId,
+            label: issuedVpnAccount.label,
+            status: issuedVpnAccount.status,
+            configSnapshot: issuedVpnAccount.configSnapshot,
+            createdAt: issuedVpnAccount.createdAt.toISOString(),
+          }
+        : null,
     }
   })
 

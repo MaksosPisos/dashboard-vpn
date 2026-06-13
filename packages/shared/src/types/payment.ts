@@ -23,4 +23,7 @@ export interface CreateManualPaymentDto {
   notes?: string
   notifyTelegram?: boolean
   issueVpnAccount?: boolean
+  vpnLabel?: string
+  vpnConfigSnapshot?: string
+  vpnServerId?: string
 }

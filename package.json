@@ -8,6 +8,7 @@
   "scripts": {
     "postinstall": "npm run build --workspace=@dashboard-vpn/shared",
     "dev": "concurrently -n api,web,bot -c blue,green,magenta \"npm run dev:api\" \"npm run dev:web\" \"npm run dev:bot\"",
+    "dev:crm": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
     "dev:web": "npm run dev --workspace=@dashboard-vpn/web",
     "dev:api": "npm run dev --workspace=@dashboard-vpn/api",
     "dev:bot": "npm run dev --workspace=@dashboard-vpn/bot",

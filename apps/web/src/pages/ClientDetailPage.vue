@@ -98,6 +98,9 @@ const paymentForm = ref({
   paidAt: new Date(),
   notes: '',
   notifyTelegram: true,
+  issueVpnAccount: true,
+  vpnLabel: 'Телефон',
+  vpnConfigSnapshot: '',
 })
 
 const vpnForm = ref({
@@ -184,21 +187,61 @@ function toPaymentDateString(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
+const hasActiveVpnConfig = computed(
+  () =>
+    client.value?.vpnAccounts.some(
+      (account) => account.status === 'ACTIVE' && account.configSnapshot,
+    ) ?? false,
+)
+
 async function submitPayment() {
   if (!paymentForm.value.planId) return
+
+  if (paymentForm.value.issueVpnAccount) {
+    const config = paymentForm.value.vpnConfigSnapshot.trim()
+    if (!hasActiveVpnConfig.value && !config) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Нужен VPN-конфиг',
+        detail: 'У клиента ещё нет ключа — вставьте конфиг Amnezia',
+        life: 4000,
+      })
+      return
+    }
+    if (config && !paymentForm.value.vpnLabel.trim()) {
+      toast.add({
+        severity: 'warn',
+        summary: 'Укажите название устройства',
+        life: 3000,
+      })
+      return
+    }
+  }
+
   savingPayment.value = true
   try {
-    await api.post(
-      `/clients/${clientId.value}/payments`,
-      {
-        ...paymentForm.value,
-        paidAt: toPaymentDateString(paymentForm.value.paidAt),
-      },
-      auth.token,
-    )
+    const payload = {
+      ...paymentForm.value,
+      paidAt: toPaymentDateString(paymentForm.value.paidAt),
+      vpnLabel: paymentForm.value.vpnLabel.trim() || undefined,
+      vpnConfigSnapshot: paymentForm.value.vpnConfigSnapshot.trim() || undefined,
+    }
+
+    await api.post(`/clients/${clientId.value}/payments`, payload, auth.token)
     showPaymentDialog.value = false
     await queryClient.invalidateQueries({ queryKey: ['client', clientId] })
     await queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] })
+    await queryClient.invalidateQueries({ queryKey: ['vpn-accounts'] })
+    toast.add({
+      severity: 'success',
+      summary: 'Оплата сохранена',
+      detail: paymentForm.value.issueVpnAccount
+        ? paymentForm.value.notifyTelegram
+          ? 'Подписка продлена, ключ отправлен в Telegram'
+          : 'Подписка продлена, VPN-ключ выдан'
+        : undefined,
+      life: 4000,
+    })
   } finally {
     savingPayment.value = false
   }
@@ -219,6 +262,10 @@ async function submitVpnAccount() {
 function openPaymentDialog() {
   paymentForm.value.planId = plans.value?.[0]?.id ?? ''
   paymentForm.value.amount = Number(plans.value?.[0]?.price ?? 300)
+  paymentForm.value.notifyTelegram = client.value?.telegramLink?.isLinked ?? false
+  paymentForm.value.issueVpnAccount = true
+  paymentForm.value.vpnLabel = 'Телефон'
+  paymentForm.value.vpnConfigSnapshot = ''
   showPaymentDialog.value = true
 }
 
@@ -744,6 +791,33 @@ async function submitRejectLead() {
         <Checkbox v-model="paymentForm.notifyTelegram" input-id="notifyTg" binary />
         <label for="notifyTg">Уведомить клиента в Telegram</label>
       </div>
+      <div class="form-field checkbox-field">
+        <Checkbox v-model="paymentForm.issueVpnAccount" input-id="issueVpn" binary />
+        <label for="issueVpn">Выдать VPN-ключ</label>
+      </div>
+      <template v-if="paymentForm.issueVpnAccount">
+        <Message v-if="hasActiveVpnConfig" severity="info" :closable="false" class="mb-3">
+          У клиента уже есть ключ — конфиг можно не заполнять, будет отправлен существующий.
+        </Message>
+        <div class="form-field">
+          <label>Название устройства</label>
+          <InputText
+            v-model="paymentForm.vpnLabel"
+            class="w-full"
+            placeholder="Телефон / ноутбук"
+            :disabled="!paymentForm.vpnConfigSnapshot.trim() && hasActiveVpnConfig"
+          />
+        </div>
+        <div class="form-field">
+          <label>Config (Amnezia)</label>
+          <Textarea
+            v-model="paymentForm.vpnConfigSnapshot"
+            rows="6"
+            class="w-full"
+            :placeholder="hasActiveVpnConfig ? 'Оставьте пустым, чтобы отправить существующий ключ' : 'Вставьте конфиг из Amnezia'"
+          />
+        </div>
+      </template>
       <template #footer>
         <Button label="Отмена" text @click="showPaymentDialog = false" />
         <Button label="Сохранить" :loading="savingPayment" @click="submitPayment" />

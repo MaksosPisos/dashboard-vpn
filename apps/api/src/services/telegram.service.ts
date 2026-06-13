@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma.js'
 import { env } from '../config/env.js'
 import { addDays, differenceInCalendarDays } from './date.js'
 import { resolveSubscriptionDisplayStatus } from './subscription.service.js'
+import { vpnService } from './vpn.service.js'
 
 function formatRub(amount: number | string) {
   return `${Number(amount).toLocaleString('ru-RU')} ₽`
@@ -167,12 +168,9 @@ export class TelegramService {
           include: {
             subscriptions: {
               where: { status: 'ACTIVE', endDate: { gte: new Date() } },
+              orderBy: { endDate: 'desc' },
               take: 1,
-            },
-            vpnAccounts: {
-              where: { status: 'ACTIVE' },
-              orderBy: { createdAt: 'desc' },
-              take: 1,
+              include: { plan: true },
             },
           },
         },
@@ -187,18 +185,26 @@ export class TelegramService {
       throw new Error('CLIENT_PENDING')
     }
 
-    if (!link.client.subscriptions.length) {
+    const subscription = link.client.subscriptions[0]
+    if (!subscription) {
       throw new Error('SUBSCRIPTION_INACTIVE')
     }
 
-    const account = link.client.vpnAccounts[0]
-    if (!account?.configSnapshot) {
+    const accounts = await vpnService.findActiveConfigsForClient(
+      link.client.id,
+      subscription.plan.maxDevices,
+    )
+
+    if (!accounts.length) {
       throw new Error('NO_CONFIG')
     }
 
     return {
-      label: account.label,
-      config: account.configSnapshot,
+      maxDevices: subscription.plan.maxDevices,
+      configs: accounts.map((account) => ({
+        label: account.label,
+        config: account.configSnapshot!,
+      })),
     }
   }
 
@@ -225,7 +231,31 @@ export class TelegramService {
     return { sent: true }
   }
 
-  async notifyPaymentExtended(clientId: string, endDate: Date, planName: string) {
+  async sendVpnConfig(chatId: string, label: string, config: string) {
+    const trimmed = config.trim()
+
+    if (trimmed.startsWith('vpn://')) {
+      return this.sendMessage(chatId, `🔑 <b>${label}</b>\n\n${trimmed}`)
+    }
+
+    const header = `🔑 <b>${label}</b>\n\n`
+
+    if (header.length + trimmed.length > 4000) {
+      return this.sendMessage(
+        chatId,
+        `${header}Конфиг слишком длинный. Используйте /config или обратитесь к администратору.`,
+      )
+    }
+
+    return this.sendMessage(chatId, `${header}<pre>${trimmed}</pre>`)
+  }
+
+  async notifyPaymentExtended(
+    clientId: string,
+    endDate: Date,
+    planName: string,
+    options?: { vpnLabel?: string; vpnConfig?: string },
+  ) {
     const link = await prisma.telegramLink.findUnique({ where: { clientId } })
     if (!link?.chatId) return { skipped: true, reason: 'not_linked' }
 
@@ -234,9 +264,18 @@ export class TelegramService {
       `✅ <b>Подписка продлена</b>\n\n` +
       `Тариф: ${planName}\n` +
       `Действует до: ${formatted}\n\n` +
+      (options?.vpnLabel && options?.vpnConfig
+        ? `Ниже — ваш VPN-ключ.\n\n`
+        : `/config — получить VPN-ключ\n`) +
       `/status — проверить статус`
 
-    return this.sendMessage(link.chatId, text)
+    await this.sendMessage(link.chatId, text)
+
+    if (options?.vpnLabel && options?.vpnConfig) {
+      return this.sendVpnConfig(link.chatId, options.vpnLabel, options.vpnConfig)
+    }
+
+    return { sent: true }
   }
 
   async notifySubscriptionSuspended(clientId: string, planName: string) {

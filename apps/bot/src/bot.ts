@@ -62,6 +62,29 @@ async function handleSubscribe(ctx: { chat?: { id: number }; from?: { username?:
   }
 }
 
+async function sendVpnConfigMessage(
+  ctx: { reply: (text: string, extra?: object) => Promise<unknown> },
+  label: string,
+  config: string,
+) {
+  const trimmed = config.trim()
+
+  if (trimmed.startsWith('vpn://')) {
+    await ctx.reply(`🔑 <b>${label}</b>\n\n${trimmed}`, { parse_mode: 'HTML' })
+    return
+  }
+
+  const header = `🔑 <b>${label}</b>\n\n`
+  if (header.length + trimmed.length > 4000) {
+    await ctx.reply(`${header}Конфиг слишком длинный, обратитесь к администратору.`, {
+      parse_mode: 'HTML',
+    })
+    return
+  }
+
+  await ctx.reply(`${header}<pre>${trimmed}</pre>`, { parse_mode: 'HTML' })
+}
+
 export function createBot(): Bot {
   const bot = new Bot(botEnv.token)
 
@@ -136,17 +159,21 @@ export function createBot(): Bot {
   bot.command('config', async (ctx) => {
     try {
       const data = await api.getConfig(String(ctx.chat.id))
-      const header = `🔑 <b>${data.label}</b>\n\n`
-      const configText = data.config
 
-      if (header.length + configText.length > 4000) {
-        await ctx.reply(header + 'Конфиг слишком длинный, обратитесь к администратору.', {
-          parse_mode: 'HTML',
-        })
+      if (data.configs.length === 1) {
+        await sendVpnConfigMessage(ctx, data.configs[0].label, data.configs[0].config)
         return
       }
 
-      await ctx.reply(`${header}<pre>${configText}</pre>`, { parse_mode: 'HTML' })
+      await ctx.reply(
+        `🔑 <b>VPN-ключи</b> (${data.configs.length} из ${data.maxDevices})\n\n` +
+          'Каждый ключ — для отдельного устройства.',
+        { parse_mode: 'HTML' },
+      )
+
+      for (const item of data.configs) {
+        await sendVpnConfigMessage(ctx, item.label, item.config)
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'UNKNOWN'
       const replies: Record<string, string> = {

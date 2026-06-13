@@ -42,6 +42,9 @@ export const createManualPaymentSchema = z.object({
   notes: z.string().optional(),
   notifyTelegram: z.boolean().optional(),
   issueVpnAccount: z.boolean().optional(),
+  vpnLabel: z.string().min(1).optional(),
+  vpnConfigSnapshot: z.string().min(1).optional(),
+  vpnServerId: z.string().uuid().optional(),
 })
 
 export const cancelSubscriptionSchema = z.object({

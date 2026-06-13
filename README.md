@@ -61,19 +61,37 @@ npm run dev:bot   # telegram bot
 
 ### 5. Telegram-бот
 
-1. Создай бота через [@BotFather](https://t.me/BotFather), получи `TELEGRAM_BOT_TOKEN`
-2. Узнай username бота (без `@`) → `TELEGRAM_BOT_USERNAME`
-3. Узнай свой Telegram ID ([@userinfobot](https://t.me/userinfobot)) → `TELEGRAM_ADMIN_IDS`
-4. Добавь в `.env`:
+> **Prod уже на VPS?** Локально заведи **отдельного тестового бота** — один `TELEGRAM_BOT_TOKEN` нельзя крутить в двух местах (ошибка `409 Conflict`, `/config` смотрит не в ту БД).
+
+#### Локально (тестовый бот)
+
+1. [@BotFather](https://t.me/BotFather) → `/newbot` → имя вроде `VPN Dashboard Test`
+2. Скопируй токен и username (без `@`) в **локальный** `.env`
+3. Свой Telegram ID ([@userinfobot](https://t.me/userinfobot)) → `TELEGRAM_ADMIN_IDS`
 
 ```env
-TELEGRAM_BOT_TOKEN=123456:ABC...
-TELEGRAM_BOT_USERNAME=your_vpn_bot
+TELEGRAM_BOT_TOKEN=123456:ABC...   # только тестовый бот
+TELEGRAM_BOT_USERNAME=my_vpn_test_bot
 TELEGRAM_ADMIN_IDS=123456789
 BOT_API_KEY=dev-bot-api-key
+API_INTERNAL_URL=http://localhost:3001
 ```
 
-5. Перезапусти `npm run dev` — бот поднимется вместе с API и web.
+4. `npm run dev` — API + web + **тестовый** бот
+
+Клиентов для проверки создавай заново в локальной БД (`/subscribe` в тестовом боте). Prod-клиенты живут на сервере.
+
+#### Только админка без локального бота
+
+Если правишь CRM, а бот должен остаться только на VPS:
+
+```bash
+npm run dev:crm
+```
+
+#### Prod (боевой бот)
+
+Токен боевого бота — только в `.env` на сервере (`deploy/README.md`), не в локальном `.env`.
 
 **Привязка клиента:** карточка клиента → вкладка **Telegram** → «Сгенерировать ссылку» → отправить клиенту.
 
