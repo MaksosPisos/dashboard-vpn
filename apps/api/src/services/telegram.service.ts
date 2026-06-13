@@ -354,9 +354,46 @@ export class TelegramService {
       text += `Для доступа к VPN необходимо оплатить подписку.\n\n`
     }
 
-    text += `Свяжитесь с администратором для оплаты.\n/pay — инструкция\n/status — проверить статус`
+    text += `Оплатите подписку командой /pay\n/status — проверить статус`
 
     return this.sendMessage(link.chatId, text)
+  }
+
+  async notifyPaymentReceivedAwaitingVpn(clientId: string) {
+    const link = await prisma.telegramLink.findUnique({ where: { clientId } })
+    if (!link?.chatId) return { skipped: true, reason: 'not_linked' }
+
+    const text =
+      `✅ <b>Оплата получена</b>\n\n` +
+      `Подписка активирована. VPN-ключ будет выдан администратором в ближайшее время.\n\n` +
+      `/status — проверить статус`
+
+    return this.sendMessage(link.chatId, text)
+  }
+
+  async notifyAdminsFreekassaPayment(
+    clientName: string,
+    username: string | null,
+    planName: string,
+    amount: number,
+    wasNewClient: boolean,
+  ) {
+    if (!env.telegramAdminIds.length) return { skipped: true, reason: 'no_admins' }
+
+    const contact = username ? `@${username}` : 'без username'
+    const text =
+      `💰 <b>Оплата FreeKassa</b>\n\n` +
+      `Клиент: ${clientName}\n` +
+      `Telegram: ${contact}\n` +
+      `Тариф: ${planName}\n` +
+      `Сумма: ${formatRub(amount)}\n` +
+      (wasNewClient ? `\nНовый клиент активирован — выдайте VPN-ключ в админке.` : `\nVPN-ключ не найден — выдайте вручную.`)
+
+    for (const adminId of env.telegramAdminIds) {
+      await this.sendMessage(adminId, text)
+    }
+
+    return { sent: true }
   }
 
   async notifyExpiryReminder(
@@ -431,8 +468,7 @@ export class TelegramService {
     const text =
       `✅ <b>Заявка одобрена</b>\n\n` +
       `Администратор подтвердил ваш доступ.\n` +
-      `Ожидайте выдачи ключа или инструкций по оплате.\n\n` +
-      `/pay — как оплатить\n` +
+      `Оплатите подписку командой /pay или дождитесь выдачи ключа.\n\n` +
       `/status — статус`
 
     return this.sendMessage(link.chatId, text)

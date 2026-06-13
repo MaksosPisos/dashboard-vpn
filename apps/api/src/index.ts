@@ -10,6 +10,7 @@ import { clientRoutes } from './routes/client.routes.js'
 import { planRoutes } from './routes/plan.routes.js'
 import { subscriptionRoutes } from './routes/subscription.routes.js'
 import { paymentRoutes } from './routes/payment.routes.js'
+import { freekassaRoutes } from './routes/freekassa.routes.js'
 import { vpnRoutes } from './routes/vpn.routes.js'
 import { telegramRoutes, registerBotAuth } from './routes/telegram.routes.js'
 import { startScheduler, stopScheduler } from './scheduler.js'
@@ -42,6 +43,7 @@ await app.register(clientRoutes)
 await app.register(planRoutes)
 await app.register(subscriptionRoutes)
 await app.register(paymentRoutes)
+await app.register(freekassaRoutes)
 await app.register(vpnRoutes)
 await app.register(telegramRoutes)
 

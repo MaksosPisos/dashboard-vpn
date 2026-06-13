@@ -4,6 +4,7 @@ import { env } from '../config/env.js'
 import { prisma } from '../lib/prisma.js'
 import { triggerExpiryRemindersManually } from '../scheduler.js'
 import { leadService } from '../services/lead.service.js'
+import { paymentService } from '../services/payment.service.js'
 import { telegramService } from '../services/telegram.service.js'
 import { subscribeTelegramSchema } from '../schemas/index.js'
 const linkSchema = z.object({
@@ -170,6 +171,38 @@ export async function telegramRoutes(app: FastifyInstance) {
     preHandler: [app.authenticateBot],
   }, async () => {
     return telegramService.getDashboardStatsForBot()
+  })
+
+  app.get('/internal/telegram/:chatId/plans', {
+    preHandler: [app.authenticateBot],
+  }, async () => {
+    return paymentService.listActivePlans()
+  })
+
+  app.post('/internal/telegram/:chatId/payment', {
+    preHandler: [app.authenticateBot],
+  }, async (request, reply) => {
+    const { chatId } = request.params as { chatId: string }
+    const body = z.object({ planId: z.string().uuid() }).parse(request.body)
+
+    try {
+      return await paymentService.createTelegramPayment(chatId, body.planId)
+    } catch (error) {
+      if (error instanceof Error) {
+        const messages: Record<string, string> = {
+          NOT_LINKED: 'Account not linked',
+          CLIENT_NOT_PAYABLE: 'Оплата недоступна для этого аккаунта',
+          PLAN_NOT_FOUND: 'Тариф не найден',
+          FREEKASSA_NOT_CONFIGURED: 'FreeKassa не настроена на сервере',
+        }
+        const message = messages[error.message]
+        if (message) {
+          const status = error.message === 'NOT_LINKED' ? 404 : 400
+          return reply.status(status).send({ message })
+        }
+      }
+      throw error
+    }
   })
 
   app.post('/internal/jobs/expiry-reminders', {

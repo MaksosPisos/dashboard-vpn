@@ -63,4 +63,20 @@ export const api = {
       '/internal/dashboard/stats',
     )
   },
+
+  getPlansForChat(chatId: string) {
+    return request<Array<{ id: string; name: string; durationDays: number; price: string; maxDevices: number }>>(
+      `/internal/telegram/${encodeURIComponent(chatId)}/plans`,
+    )
+  },
+
+  createPayment(chatId: string, planId: string) {
+    return request<{ orderId: string; paymentUrl: string; amount: string; planName: string }>(
+      `/internal/telegram/${encodeURIComponent(chatId)}/payment`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ planId }),
+      },
+    )
+  },
 }

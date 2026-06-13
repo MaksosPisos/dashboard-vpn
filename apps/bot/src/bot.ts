@@ -85,6 +85,41 @@ async function sendVpnConfigMessage(
   await ctx.reply(`${header}<pre>${trimmed}</pre>`, { parse_mode: 'HTML' })
 }
 
+function formatRub(amount: string | number): string {
+  return `${Number(amount).toLocaleString('ru-RU')} ₽`
+}
+
+async function handlePayCommand(ctx: { chat: { id: number }; reply: (text: string, extra?: object) => Promise<unknown> }) {
+  const chatId = String(ctx.chat.id)
+
+  try {
+    const plans = await api.getPlansForChat(chatId)
+
+    if (plans.length === 0) {
+      await ctx.reply('Тарифы временно недоступны. Напишите администратору.')
+      return
+    }
+
+    const keyboard = new InlineKeyboard()
+    for (const plan of plans) {
+      keyboard.text(`${plan.name} — ${formatRub(plan.price)}`, `pay:${plan.id}`).row()
+    }
+
+    await ctx.reply(
+      '💳 <b>Оплата подписки</b>\n\n' +
+        'Выберите тариф. После оплаты подписка активируется автоматически.',
+      { parse_mode: 'HTML', reply_markup: keyboard },
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'UNKNOWN'
+    const replies: Record<string, string> = {
+      'Account not linked': 'Сначала отправьте /subscribe или привяжите аккаунт через ссылку из админки.',
+      'FreeKassa не настроена на сервере': 'Онлайн-оплата временно недоступна. Напишите администратору.',
+    }
+    await ctx.reply(replies[message] ?? 'Не удалось загрузить тарифы. Попробуйте позже.')
+  }
+}
+
 export function createBot(): Bot {
   const bot = new Bot(botEnv.token)
 
@@ -187,12 +222,35 @@ export function createBot(): Bot {
   })
 
   bot.command('pay', async (ctx) => {
-    await ctx.reply(
-      '💳 <b>Оплата</b>\n\n' +
-        'Для подключения или продления напишите администратору VPN.\n' +
-        'Если вы ещё не подключены — отправьте /subscribe',
-      { parse_mode: 'HTML' },
-    )
+    if (!ctx.chat) return
+    await handlePayCommand(ctx)
+  })
+
+  bot.callbackQuery(/^pay:(.+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery()
+    if (!ctx.chat) return
+
+    const planId = ctx.match[1]
+    const chatId = String(ctx.chat.id)
+
+    try {
+      const payment = await api.createPayment(chatId, planId)
+      const keyboard = new InlineKeyboard().url(
+        `Оплатить ${formatRub(payment.amount)}`,
+        payment.paymentUrl,
+      )
+
+      await ctx.reply(
+        `💳 <b>${payment.planName}</b>\n\n` +
+          `Сумма: ${formatRub(payment.amount)}\n\n` +
+          `Нажмите кнопку ниже для оплаты через FreeKassa.\n` +
+          `После оплаты бот пришлёт подтверждение.`,
+        { parse_mode: 'HTML', reply_markup: keyboard },
+      )
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось создать платёж'
+      await ctx.reply(`❌ ${message}`)
+    }
   })
 
   bot.command('stats', async (ctx) => {

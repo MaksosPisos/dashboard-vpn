@@ -1,4 +1,4 @@
-export type PaymentMethod = 'CASH' | 'TRANSFER' | 'OTHER' | 'YOOKASSA' | 'ROBOKASSA'
+export type PaymentMethod = 'CASH' | 'TRANSFER' | 'OTHER' | 'YOOKASSA' | 'ROBOKASSA' | 'FREEKASSA'
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED'
 
 export interface Payment {

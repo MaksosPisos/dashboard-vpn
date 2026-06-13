@@ -27,4 +27,8 @@ export const env = {
   cronExpiryRemindersEnabled: process.env.CRON_EXPIRY_REMINDERS_ENABLED !== 'false',
   cronExpiryRemindersSchedule: process.env.CRON_EXPIRY_REMINDERS_SCHEDULE ?? '0 10 * * *',
   cronTimezone: process.env.CRON_TIMEZONE ?? 'Europe/Moscow',
+  freekassaMerchantId: process.env.FREEKASSA_MERCHANT_ID ?? '',
+  freekassaSecretWord1: process.env.FREEKASSA_SECRET_WORD_1 ?? '',
+  freekassaSecretWord2: process.env.FREEKASSA_SECRET_WORD_2 ?? '',
+  publicApiUrl: process.env.PUBLIC_API_URL ?? '',
 }
