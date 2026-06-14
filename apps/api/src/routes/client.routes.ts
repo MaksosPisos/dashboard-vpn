@@ -397,11 +397,11 @@ export async function clientRoutes(app: FastifyInstance) {
       } catch (error) {
         if (error instanceof Error) {
           if (error.message === 'VPN_LABEL_REQUIRED') {
-            return reply.status(400).send({ message: 'Укажите название устройства для VPN-ключа' })
+            return reply.status(400).send({ message: 'Укажите название устройства для конфига' })
           }
           if (error.message === 'VPN_CONFIG_REQUIRED') {
             return reply.status(400).send({
-              message: 'У клиента нет VPN-ключа. Вставьте конфиг Amnezia для выдачи.',
+              message: 'У клиента нет конфига. Вставьте конфиг Amnezia для выдачи.',
             })
           }
         }

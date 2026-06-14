@@ -92,7 +92,7 @@ function openClient(id: string) {
 
 <template>
   <div>
-    <PageHeader title="Клиенты" subtitle="Учёт VPN-пользователей и подписок">
+    <PageHeader title="Клиенты" subtitle="Учёт пользователей и подписок">
       <template #actions>
         <Button label="Добавить клиента" icon="pi pi-plus" @click="showDialog = true" />
       </template>

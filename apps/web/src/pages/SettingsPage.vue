@@ -137,12 +137,12 @@ async function toggleServer(server: VpnServer) {
 
 <template>
   <div>
-    <PageHeader title="Настройки" subtitle="Тарифы и VPN-серверы" />
+    <PageHeader title="Настройки" subtitle="Тарифы и серверы подключения" />
 
     <Tabs value="0">
       <TabList>
         <Tab value="0">Тарифы</Tab>
-        <Tab value="1">VPN-серверы</Tab>
+        <Tab value="1">Серверы</Tab>
       </TabList>
       <TabPanels>
         <TabPanel value="0">

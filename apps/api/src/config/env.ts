@@ -31,4 +31,10 @@ export const env = {
   freekassaSecretWord1: process.env.FREEKASSA_SECRET_WORD_1 ?? '',
   freekassaSecretWord2: process.env.FREEKASSA_SECRET_WORD_2 ?? '',
   publicApiUrl: process.env.PUBLIC_API_URL ?? '',
+  shopName: process.env.SHOP_NAME ?? 'IT-сервис подключения',
+  sellerName: process.env.SELLER_NAME ?? '',
+  sellerInn: process.env.SELLER_INN ?? '',
+  sellerEmail: process.env.SELLER_EMAIL ?? '',
+  sellerPhone: process.env.SELLER_PHONE ?? '',
+  telegramSupportUsername: (process.env.TELEGRAM_SUPPORT_USERNAME ?? '').replace(/^@/, '').trim(),
 }

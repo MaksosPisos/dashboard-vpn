@@ -43,5 +43,5 @@ const logoClass = computed(() => {
 </script>
 
 <template>
-  <img :src="src" alt="VPN Dashboard" :class="logoClass" />
+  <img :src="src" alt="Панель учёта" :class="logoClass" />
 </template>

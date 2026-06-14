@@ -75,7 +75,7 @@ function openClient(clientId: string) {
 
 <template>
   <div>
-    <PageHeader title="VPN-аккаунты" subtitle="Глобальный реестр ключей" />
+    <PageHeader title="Аккаунты подключения" subtitle="Глобальный реестр конфигов" />
 
     <Card>
       <template #content>
@@ -149,7 +149,7 @@ function openClient(clientId: string) {
       </template>
     </Card>
 
-    <Dialog v-model:visible="configDialog" modal header="VPN Config" :style="{ width: '560px' }">
+    <Dialog v-model:visible="configDialog" modal header="Конфиг подключения" :style="{ width: '560px' }">
       <Textarea :model-value="selectedConfig" rows="12" readonly class="w-full" />
     </Dialog>
   </div>

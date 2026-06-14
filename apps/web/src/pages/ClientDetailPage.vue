@@ -202,8 +202,8 @@ async function submitPayment() {
     if (!hasActiveVpnConfig.value && !config) {
       toast.add({
         severity: 'warn',
-        summary: 'Нужен VPN-конфиг',
-        detail: 'У клиента ещё нет ключа — вставьте конфиг Amnezia',
+        summary: 'Нужен конфиг',
+        detail: 'У клиента ещё нет конфига — вставьте конфиг Amnezia',
         life: 4000,
       })
       return
@@ -237,8 +237,8 @@ async function submitPayment() {
       summary: 'Оплата сохранена',
       detail: paymentForm.value.issueVpnAccount
         ? paymentForm.value.notifyTelegram
-          ? 'Подписка продлена, ключ отправлен в Telegram'
-          : 'Подписка продлена, VPN-ключ выдан'
+          ? 'Подписка продлена, конфиг отправлен в Telegram'
+          : 'Подписка продлена, конфиг выдан'
         : undefined,
       life: 4000,
     })
@@ -440,7 +440,7 @@ async function submitResumeSubscription() {
       toast.add({
         severity: 'warn',
         summary: 'Подписка истекла во время паузы',
-        detail: 'Нужна новая оплата для доступа к VPN',
+        detail: 'Нужна новая оплата для продления доступа',
         life: 5000,
       })
     } else {
@@ -554,7 +554,7 @@ async function submitRejectLead() {
           @click="openSuspendDialog"
         />
         <Button label="Зафиксировать оплату" icon="pi pi-wallet" @click="openPaymentDialog" />
-        <Button label="Выдать ключ" icon="pi pi-key" severity="secondary" @click="showVpnDialog = true" />
+        <Button label="Выдать конфиг" icon="pi pi-key" severity="secondary" @click="showVpnDialog = true" />
         </template>
       </template>
     </PageHeader>
@@ -589,7 +589,7 @@ async function submitRejectLead() {
           :closable="false"
           class="mt-3"
         >
-          Заявка из Telegram-бота. Одобрите клиента, затем зафиксируйте оплату и выдайте VPN-ключ.
+          Заявка из Telegram-бота. Одобрите клиента, затем зафиксируйте оплату и выдайте конфиг.
         </Message>
         <Message
           v-else-if="displaySubscription?.status === 'SUSPENDED'"
@@ -609,7 +609,7 @@ async function submitRejectLead() {
 
     <Tabs value="0">
       <TabList>
-        <Tab value="0">VPN-аккаунты</Tab>
+        <Tab value="0">Подключения</Tab>
         <Tab value="1">Подписки</Tab>
         <Tab value="2">Оплаты</Tab>
         <Tab value="3">Telegram</Tab>
@@ -793,7 +793,7 @@ async function submitRejectLead() {
       </div>
       <div class="form-field checkbox-field">
         <Checkbox v-model="paymentForm.issueVpnAccount" input-id="issueVpn" binary />
-        <label for="issueVpn">Выдать VPN-ключ</label>
+        <label for="issueVpn">Выдать конфиг при оплате</label>
       </div>
       <template v-if="paymentForm.issueVpnAccount">
         <Message v-if="hasActiveVpnConfig" severity="info" :closable="false" class="mb-3">
@@ -824,7 +824,7 @@ async function submitRejectLead() {
       </template>
     </Dialog>
 
-    <Dialog v-model:visible="showVpnDialog" modal header="Выдать VPN-ключ" :style="{ width: '560px' }">
+    <Dialog v-model:visible="showVpnDialog" modal header="Выдать конфиг" :style="{ width: '560px' }">
       <div class="form-field">
         <label>Название устройства</label>
         <InputText v-model="vpnForm.label" class="w-full" placeholder="Телефон / ноутбук" />
@@ -858,17 +858,17 @@ async function submitRejectLead() {
       </template>
     </Dialog>
 
-    <Dialog v-model:visible="showConfigDialog" modal header="VPN Config" :style="{ width: '560px' }">
+    <Dialog v-model:visible="showConfigDialog" modal header="Конфиг подключения" :style="{ width: '560px' }">
       <Textarea :model-value="selectedConfig" rows="10" readonly class="w-full" />
     </Dialog>
 
     <Dialog v-model:visible="showSuspendDialog" modal header="Приостановить подписку" :style="{ width: '480px' }">
       <Message severity="info" :closable="false" class="mb-3">
-        Доступ к VPN будет временно отключён. Оставшиеся дни подписки сохранятся и продолжат идти после возобновления.
+        Доступ будет временно отключён. Оставшиеся дни подписки сохранятся и продолжат идти после возобновления.
       </Message>
       <div class="form-field checkbox-field">
         <Checkbox v-model="suspendForm.suspendVpn" input-id="suspendVpn" binary />
-        <label for="suspendVpn">Приостановить активные VPN-ключи</label>
+        <label for="suspendVpn">Приостановить активные конфиги</label>
       </div>
       <div class="form-field checkbox-field">
         <Checkbox
@@ -897,7 +897,7 @@ async function submitRejectLead() {
       </Message>
       <div class="form-field checkbox-field">
         <Checkbox v-model="resumeForm.activateVpn" input-id="activateVpn" binary />
-        <label for="activateVpn">Активировать приостановленные VPN-ключи</label>
+        <label for="activateVpn">Активировать приостановленные конфиги</label>
       </div>
       <div class="form-field checkbox-field">
         <Checkbox

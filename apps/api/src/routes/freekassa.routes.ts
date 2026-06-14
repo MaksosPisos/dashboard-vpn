@@ -56,7 +56,7 @@ export async function freekassaRoutes(app: FastifyInstance) {
   app.get('/webhooks/freekassa/success', async (_request, reply) => {
     const html = buildRedirectPage(
       'Оплата прошла',
-      'Спасибо! Платёж принят. Вернитесь в Telegram — бот пришлёт подтверждение и ключ VPN.',
+      'Спасибо! Платёж принят. Вернитесь в Telegram — бот пришлёт подтверждение и конфиг подключения.',
       getBotUrl(),
     )
     return reply.type('text/html; charset=utf-8').send(html)

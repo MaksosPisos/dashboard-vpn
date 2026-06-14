@@ -17,7 +17,7 @@ const navItems = [
   { label: 'Клиенты', icon: 'pi pi-users', to: '/clients' },
   { label: 'Подписки', icon: 'pi pi-calendar', to: '/subscriptions' },
   { label: 'Оплаты', icon: 'pi pi-wallet', to: '/payments' },
-  { label: 'VPN-ключи', icon: 'pi pi-key', to: '/accounts' },
+  { label: 'Ключи доступа', icon: 'pi pi-key', to: '/accounts' },
   { label: 'Настройки', icon: 'pi pi-cog', to: '/settings' },
 ]
 
@@ -28,10 +28,10 @@ const pageTitle = computed(() => {
     'client-detail': 'Карточка клиента',
     subscriptions: 'Подписки',
     payments: 'Оплаты',
-    'vpn-accounts': 'VPN-аккаунты',
+    'vpn-accounts': 'Аккаунты подключения',
     settings: 'Настройки',
   }
-  return titles[String(route.name)] ?? 'VPN Dashboard'
+  return titles[String(route.name)] ?? 'Панель учёта'
 })
 
 function logout() {

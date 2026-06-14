@@ -50,6 +50,12 @@ services:
       FREEKASSA_SECRET_WORD_1: ${FREEKASSA_SECRET_WORD_1:-}
       FREEKASSA_SECRET_WORD_2: ${FREEKASSA_SECRET_WORD_2:-}
       PUBLIC_API_URL: ${PUBLIC_API_URL:-}
+      TELEGRAM_SUPPORT_USERNAME: ${TELEGRAM_SUPPORT_USERNAME:-}
+      SHOP_NAME: ${SHOP_NAME:-IT-сервис подключения}
+      SELLER_NAME: ${SELLER_NAME:-}
+      SELLER_INN: ${SELLER_INN:-}
+      SELLER_EMAIL: ${SELLER_EMAIL:-}
+      SELLER_PHONE: ${SELLER_PHONE:-}
     depends_on:
       postgres:
         condition: service_healthy

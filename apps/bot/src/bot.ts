@@ -15,13 +15,14 @@ function supportContactLine(): string {
 
 function welcomeText(): string {
   return (
-    '🔐 <b>VPN-сервис Amnezia</b>\n\n' +
-    'Бот помогает подключиться к VPN, следить за подпиской и получать ключи.\n\n' +
-    '<b>Новым пользователям:</b> нажмите «Хочу VPN» или отправьте /subscribe\n' +
+    '🔐 <b>Подключение Amnezia</b>\n\n' +
+    'Бот помогает оформить доступ, следить за подпиской и получить конфиг.\n\n' +
+    '<b>Новым пользователям:</b> нажмите «Подключиться» или отправьте /subscribe\n' +
     '<b>Уже есть аккаунт:</b> откройте ссылку из личного кабинета\n\n' +
     '/status — статус подписки\n' +
-    '/config — VPN-ключ\n' +
+    '/config — конфиг подключения\n' +
     '/pay — оплата\n' +
+    '/info — контакты, тарифы и условия\n' +
     '/help — справка\n\n' +
     supportContactLine()
   )
@@ -131,7 +132,8 @@ async function handlePayCommand(ctx: { chat: { id: number }; reply: (text: strin
 
     await ctx.reply(
       '💳 <b>Оплата подписки</b>\n\n' +
-        'Выберите тариф. После оплаты подписка активируется автоматически.',
+        'Выберите тариф. После оплаты подписка активируется автоматически.\n\n' +
+        'Условия и реквизиты: /info',
       { parse_mode: 'HTML', reply_markup: keyboard },
     )
   } catch (error) {
@@ -157,7 +159,7 @@ export function createBot(): Bot {
       try {
         const result = await api.linkAccount(token, chatId, username)
         await ctx.reply(
-          `✅ Аккаунт привязан!\n\nПривет, ${result.clientName}.\n\n/status — статус подписки\n/config — VPN-ключ\n/help — помощь`,
+          `✅ Аккаунт привязан!\n\nПривет, ${result.clientName}.\n\n/status — статус подписки\n/config — конфиг подключения\n/help — помощь`,
         )
         return
       } catch (error) {
@@ -167,7 +169,7 @@ export function createBot(): Bot {
       }
     }
 
-    const keyboard = new InlineKeyboard().text('Хочу VPN', 'subscribe')
+    const keyboard = new InlineKeyboard().text('Подключиться', 'subscribe')
 
     await ctx.reply(
       welcomeText(),
@@ -187,16 +189,17 @@ export function createBot(): Bot {
   bot.command('help', async (ctx) => {
     const lines = [
       '<b>Что умеет бот</b>',
-      '• Оформить заявку на VPN',
+      '• Оформить заявку на подключение',
       '• Показать статус и срок подписки',
-      '• Выдать VPN-ключ для Amnezia',
+      '• Выдать конфиг для Amnezia',
       '• Принять оплату онлайн',
       '',
       '<b>Команды:</b>',
-      '/subscribe — заявка на VPN',
+      '/subscribe — заявка на подключение',
       '/status — статус подписки',
-      '/config — получить VPN-ключ',
+      '/config — получить конфиг',
       '/pay — оплата подписки',
+      '/info — контакты, тарифы, условия',
       '/help — эта справка',
       '',
       supportContactLine(),
@@ -215,7 +218,7 @@ export function createBot(): Bot {
       await ctx.reply(formatStatus(data), { parse_mode: 'HTML' })
     } catch {
       await ctx.reply(
-        'Аккаунт не привязан.\n\nОтправьте /subscribe — заявка на подключение к VPN.',
+        'Аккаунт не привязан.\n\nОтправьте /subscribe — заявка на подключение.',
       )
     }
   })
@@ -230,8 +233,8 @@ export function createBot(): Bot {
       }
 
       await ctx.reply(
-        `🔑 <b>VPN-ключи</b> (${data.configs.length} из ${data.maxDevices})\n\n` +
-          'Каждый ключ — для отдельного устройства.',
+        `🔑 <b>Конфиги</b> (${data.configs.length} из ${data.maxDevices})\n\n` +
+          'Каждый конфиг — для отдельного устройства.',
         { parse_mode: 'HTML' },
       )
 
@@ -244,7 +247,7 @@ export function createBot(): Bot {
         'Account not linked': 'Сначала отправьте /subscribe или привяжите аккаунт через ссылку из админки.',
         CLIENT_PENDING: 'Заявка ещё на рассмотрении. Дождитесь подтверждения администратора.',
         SUBSCRIPTION_INACTIVE: 'Подписка неактивна. Продлите доступ для получения конфига.',
-        NO_CONFIG: `VPN-ключ ещё не выдан. ${supportContactLine()}`,
+        NO_CONFIG: `Конфиг ещё не выдан. ${supportContactLine()}`,
       }
       await ctx.reply(replies[message] ?? 'Не удалось получить конфиг.')
     }
@@ -253,6 +256,24 @@ export function createBot(): Bot {
   bot.command('pay', async (ctx) => {
     if (!ctx.chat) return
     await handlePayCommand(ctx)
+  })
+
+  bot.command('info', async (ctx) => {
+    try {
+      const info = await api.getShopInfo()
+      const keyboard = info.url
+        ? new InlineKeyboard().url('Полные условия на сайте', info.url)
+        : undefined
+
+      await ctx.reply(info.text, {
+        reply_markup: keyboard,
+      })
+    } catch {
+      await ctx.reply(
+        `Не удалось загрузить информацию. ${supportContactLine()}\n\n` +
+          'Тарифы: /pay',
+      )
+    }
   })
 
   bot.callbackQuery(/^pay:(.+)$/, async (ctx) => {
@@ -272,8 +293,9 @@ export function createBot(): Bot {
       await ctx.reply(
         `💳 <b>${payment.planName}</b>\n\n` +
           `Сумма: ${formatRub(payment.amount)}\n\n` +
-          `Нажмите кнопку ниже для оплаты через FreeKassa.\n` +
-          `После оплаты бот пришлёт подтверждение.`,
+          `Нажмите кнопку ниже для оплаты.\n` +
+          `После оплаты бот пришлёт подтверждение.\n\n` +
+          `Оплачивая, вы соглашаетесь с условиями (/info).`,
         { parse_mode: 'HTML', reply_markup: keyboard },
       )
     } catch (error) {

@@ -265,8 +265,8 @@ export class TelegramService {
       `Тариф: ${planName}\n` +
       `Действует до: ${formatted}\n\n` +
       (options?.vpnLabel && options?.vpnConfig
-        ? `Ниже — ваш VPN-ключ.\n\n`
-        : `/config — получить VPN-ключ\n`) +
+        ? `Ниже — ваш конфиг подключения.\n\n`
+        : `/config — получить конфиг\n`) +
       `/status — проверить статус`
 
     await this.sendMessage(link.chatId, text)
@@ -285,7 +285,7 @@ export class TelegramService {
     const text =
       `⏸ <b>Подписка приостановлена</b>\n\n` +
       `Тариф: ${planName}\n` +
-      `Доступ к VPN временно отключён.\n` +
+      `Доступ временно отключён.\n` +
       `Оставшееся время сохранится при возобновлении.\n\n` +
       `/status — проверить статус`
 
@@ -301,7 +301,7 @@ export class TelegramService {
       `▶️ <b>Подписка возобновлена</b>\n\n` +
       `Тариф: ${planName}\n` +
       `Действует до: ${formatted}\n\n` +
-      `/config — получить VPN-ключ\n` +
+      `/config — получить конфиг\n` +
       `/status — проверить статус`
 
     return this.sendMessage(link.chatId, text)
@@ -351,7 +351,7 @@ export class TelegramService {
 
       text += `Стоимость продления: ${formatRub(Number(subscription.plan.price))}\n\n`
     } else {
-      text += `Для доступа к VPN необходимо оплатить подписку.\n\n`
+      text += `Для продолжения доступа необходимо оплатить подписку.\n\n`
     }
 
     text += `Оплатите подписку командой /pay\n/status — проверить статус`
@@ -365,7 +365,7 @@ export class TelegramService {
 
     const text =
       `✅ <b>Оплата получена</b>\n\n` +
-      `Подписка активирована. VPN-ключ будет выдан администратором в ближайшее время.\n\n` +
+      `Подписка активирована. Конфиг будет выдан администратором в ближайшее время.\n\n` +
       `/status — проверить статус`
 
     return this.sendMessage(link.chatId, text)
@@ -387,7 +387,7 @@ export class TelegramService {
       `Telegram: ${contact}\n` +
       `Тариф: ${planName}\n` +
       `Сумма: ${formatRub(amount)}\n` +
-      (wasNewClient ? `\nНовый клиент активирован — выдайте VPN-ключ в админке.` : `\nVPN-ключ не найден — выдайте вручную.`)
+      (wasNewClient ? `\nНовый клиент активирован — выдайте конфиг в админке.` : `\nКонфиг не найден — выдайте вручную.`)
 
     for (const adminId of env.telegramAdminIds) {
       await this.sendMessage(adminId, text)
@@ -449,7 +449,7 @@ export class TelegramService {
 
     const contact = username ? `@${username}` : 'без username'
     const text =
-      `🆕 <b>Новая заявка на VPN</b>\n\n` +
+      `🆕 <b>Новая заявка на подключение</b>\n\n` +
       `Имя: ${clientName}\n` +
       `Telegram: ${contact}\n\n` +
       `Проверьте админку → Клиенты → «Ожидают»`
@@ -481,7 +481,7 @@ export class TelegramService {
     const text =
       `❌ <b>Заявка отклонена</b>\n\n` +
       (reason ? `${reason}\n\n` : '') +
-      `По вопросам напишите администратору VPN.`
+      `По вопросам напишите администратору.`
 
     return this.sendMessage(link.chatId, text)
   }

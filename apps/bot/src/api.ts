@@ -79,4 +79,12 @@ export const api = {
       },
     )
   },
+
+  async getShopInfo() {
+    const response = await fetch(`${botEnv.apiUrl}/public/shop/info`)
+    if (!response.ok) {
+      throw new Error('SHOP_INFO_UNAVAILABLE')
+    }
+    return response.json() as Promise<{ shopName: string; url: string; text: string }>
+  },
 }
